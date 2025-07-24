@@ -1,0 +1,21 @@
+Hey, to properly test the rate-limited API I built, follow these steps using Postman to simulate different usage patterns and validate the behavior of the rate limiter across various algorithms like Token Bucket, Fixed Window Counter, and Sliding Window Counter. First, open Postman and create a new collection called “Rate Limiter Test.” Then, set up an environment variable named base_url with the value pointing to the server—e.g., http://localhost:8080. Inside the collection, add two requests: one to {{base_url}}/unlimited and another to {{base_url}}/limited. For the /unlimited request, just make a GET call and add a test script using pm.test to check that it always returns status 200 and includes a response body like "Unlimited". Then, for the /limited request, also make a GET call, but this time include a test script to log whether the response is 200 OK (allowed) or 429 Too Many Requests (rate-limited correctly).
+
+Once that’s done, use the Collection Runner in Postman. Select the “Rate Limiter Test” collection and run the /limited request with an iteration count of 30, 50, or even 100, with delays between 100ms to 500ms to simulate burst traffic. Now, observe how it behaves based on the rate-limiting algorithm in use:
+
+Token Bucket: First ~10 requests should succeed as the bucket starts full, then you should get 429s as the bucket depletes; you’ll see only 1 request succeeding per second after that.
+
+Fixed Window Counter: Requests are counted per fixed interval (e.g., 60 sec). Once the count hits the limit, the rest are rejected until the window resets—expect a “wave-like” pattern.
+
+Sliding Window Counter/Log: You’ll get smoother request allowance and better fairness, with less abrupt rejection waves, especially if you simulate controlled delays or different users.
+
+If you want to test distributed rate limiting with Redis, run two instances of the server—one on localhost:8080 and another on localhost:8081. Send, say, 60 requests to server A (8080) to hit the limit, and then try hitting server B (8081). If Redis is set up right, B should also return 429s—confirming that limits are being shared globally.
+
+Also, if you have Newman installed (npm install -g newman), you can automate everything from the terminal by running:
+
+bash
+Copy
+Edit
+newman run RateLimiterCollection.json --iteration-count 50 --delay-request 100
+This is helpful for logs and quick testing without the Postman UI. You can even set up Postman Monitors to visualize and benchmark rate limiter performance over time.
+
+This whole test suite should help validate that the rate limiter works correctly, handles stress, supports global limits (if using Redis), and remains fair and performant under load.
